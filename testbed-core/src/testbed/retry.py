@@ -17,10 +17,15 @@ def run_with_retries(item: pytest.Item, nextitem: pytest.Item | None, retries: i
     # runtestprotocol re-initialises the fixture request itself on a re-run.
     reports = runtestprotocol(item, nextitem=nextitem, log=False)
     first_failure: str | None = None
+    # Teardown failures of discarded attempts are real errors and must still be reported.
+    discarded_teardown_failures: list[pytest.TestReport] = []
     attempts = 0
     while attempts < retries and (failed := _failed_call(reports)) is not None:
         if first_failure is None:
             first_failure = failed.longreprtext[:MAX_MESSAGE]
+        discarded_teardown_failures += [
+            r for r in reports if r.when == "teardown" and r.failed
+        ]
         attempts += 1
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
@@ -30,7 +35,7 @@ def run_with_retries(item: pytest.Item, nextitem: pytest.Item | None, retries: i
             call.user_properties.append((FLAKY_KEY, "1"))
             call.user_properties.append((FIRST_FAILURE_KEY, first_failure))
 
-    for report in reports:
+    for report in [*discarded_teardown_failures, *reports]:
         ihook.pytest_runtest_logreport(report=report)
     ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
     return True

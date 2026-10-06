@@ -49,7 +49,9 @@ def test_consistently_failing_test_is_failed_after_one_retry(pytester):
         """,
     )
     pytester.runpytest().assert_outcomes(failed=1)
-    assert _data(pytester)["summary"]["failed"] == 1
+    data = _data(pytester)
+    assert data["summary"]["failed"] == 1
+    assert data["summary"]["flaky"] == 0
     assert _attempts(pytester) == 2
 
 
@@ -81,6 +83,36 @@ def test_retries_option_allows_more_than_one_retry(pytester):
     pytester.runpytest("--testbed-retries=2").assert_outcomes(passed=1)
     assert _data(pytester)["summary"]["flaky"] == 1
     assert _attempts(pytester) == 3
+
+
+def test_teardown_error_of_a_retried_attempt_is_still_reported(pytester):
+    pytester.makepyfile(
+        counter=COUNTER,
+        test_td="""
+        import pytest
+        from counter import bump
+
+        @pytest.fixture
+        def res():
+            n = bump()
+            yield n
+            if n == 0:
+                raise RuntimeError("cleanup leaked")
+
+        def test_x(res):
+            assert res >= 1, "first attempt fails"
+        """,
+    )
+    result = pytester.runpytest()
+    result.assert_outcomes(passed=1, errors=1)
+    assert result.ret != 0
+    data = _data(pytester)
+    assert data["summary"]["flaky"] == 1
+    teardown = [r for r in data["results"] if r["nodeid"].endswith(" [teardown]")]
+    assert len(teardown) == 1
+    assert teardown[0]["outcome"] == "failed"
+    assert "cleanup leaked" in teardown[0]["message"]
+    assert _attempts(pytester) == 2
 
 
 def test_setup_errors_are_not_retried(pytester):
