@@ -2,7 +2,7 @@
 
 A small multi-project test-automation platform: a pytest plugin with a hexagonal core, where each project under test ships its own adapter as an entry-point plugin. Built as a portfolio piece for an automation-infrastructure role.
 
-> **Status:** design phase. The approved design is in [`docs/superpowers/specs/2026-10-06-testbed-design.md`](docs/superpowers/specs/2026-10-06-testbed-design.md). No code yet.
+> **Status:** Phase 1 (core framework) complete; later phases pending.
 
 ## Idea
 

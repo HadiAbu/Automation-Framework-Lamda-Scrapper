@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Greenfield. As of 2026-10-06 the repo contains only the approved design spec at `docs/superpowers/specs/2026-10-06-testbed-design.md`; no code exists yet. Read the spec before building anything. Update this file as real build/test commands and structure land (commands below are the intended ones, not yet verified).
+Phase 1 (`testbed-core`) is implemented: ports, entry-point discovery, fixtures, JSON reporting, collector and flaky retry. Later phases (Lambda + SAM, project plugins + Docker, CI + Notion) are not built yet. The design spec is at `docs/superpowers/specs/2026-10-06-testbed-design.md`; read it before building anything.
 
 ## What this is
 
@@ -18,16 +18,25 @@ Hexagonal core + one entry-point plugin per project, all delivered as a pytest p
 - Core **never imports a project**. `discovery.py` loads projects through `importlib.metadata.entry_points(group="testbed.projects")`. Adding a project = a new package that registers its adapter and tests via that entry point, with no core changes. Preserve this invariant.
 - Fixture scopes: session (`env_config`, `aws_session`, `report_sink`), module (`adapter`, resolved by project name), function (`client`, `artifact_dir`).
 - Reporting: pytest hooks build a `RunReport`; sinks are `JsonSink` and `NotionSink`. Flaky tests (rerun once) must be tagged in the report, never silently passed.
+- Report data travels on `report.user_properties` (`PROJECT_KEY`/`FLAKY_KEY`), so collection is xdist-safe; `ReportCollector` only publishes on the controller process.
+- Teardown failures appear as separate `<nodeid> [teardown]` failed entries in the report. For a retried test, teardown failures from its discarded attempts are reported the same way.
 - `FakeAdapter` lives in core so the framework is testable offline.
 - Projects under test: `projects/jobfetcher` (adapter invokes the deployed Lambda and reads S3) and `projects/publicapi` (second demo target proving reuse).
 - `services/jobfetcher/` is the Lambda being tested: `JobSource` strategies (Greenhouse, Lever) normalize to `JobPost` and write `jobs/<date>.json` to S3. Infra is AWS SAM (`template.yaml`: Lambda, daily EventBridge schedule, S3, IAM, GitHub OIDC role). The Lambda runs on its own schedule; GitHub Actions only tests it.
 - CI: `test.yml` runs `pytest -n auto` in Docker and `NotionSink` writes a row to the "Test Runs" Notion DB plus a report page, with the link in the job summary. `deploy.yml` runs `sam build && sam deploy` via OIDC (no long-lived AWS keys).
 
-## Intended commands
+## Commands
+
+```
+python -m venv .venv && .venv/Scripts/python -m pip install -e testbed-core   # setup (re-run after changing pyproject entry points)
+.venv/Scripts/python -m pytest testbed-core/tests                              # core suite
+.venv/Scripts/python -m pytest testbed-core/tests/test_retry.py::test_name     # single test
+```
+
+### Planned (later phases)
 
 ```
 pytest -n auto                      # full suite (parallel)
-pytest path/to/test.py::test_name   # single test
 sam local invoke                    # run the Lambda locally
 sam build && sam deploy             # deploy
 docker run testbed pytest -n auto   # containerized run
