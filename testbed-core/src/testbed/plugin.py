@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from testbed.fixtures import adapter, client, env_config, registry  # noqa: F401
+from testbed.fixtures import (  # noqa: F401
+    adapter,
+    artifact_dir,
+    aws_session,
+    client,
+    env_config,
+    registry,
+)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

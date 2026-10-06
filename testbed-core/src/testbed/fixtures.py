@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from testbed.config import EnvConfig
+from testbed.config import EnvConfig, report_dir
 from testbed.discovery import (
     AdapterFactory,
     create_adapter,
@@ -14,7 +16,7 @@ from testbed.discovery import (
 )
 from testbed.ports import ProjectAdapter
 
-__all__ = ["adapter", "client", "env_config", "registry"]
+__all__ = ["adapter", "artifact_dir", "aws_session", "client", "env_config", "registry"]
 
 
 @pytest.fixture(scope="session")
@@ -47,3 +49,23 @@ def adapter(
 @pytest.fixture
 def client(adapter: ProjectAdapter) -> Any:
     return adapter.client()
+
+
+@pytest.fixture
+def artifact_dir(request: pytest.FixtureRequest) -> Path:
+    safe_name = re.sub(r"[^\w.-]+", "_", request.node.nodeid)
+    path = report_dir(request.config) / "artifacts" / safe_name
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+@pytest.fixture(scope="session")
+def aws_session(env_config: EnvConfig) -> Any:
+    try:
+        import boto3
+    except ImportError:
+        pytest.fail(
+            "boto3 is required for the aws_session fixture; install testbed-core[aws]",
+            pytrace=False,
+        )
+    return boto3.Session(region_name=env_config.get("AWS_REGION"))

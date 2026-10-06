@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 
 from testbed.errors import MissingConfigError
+
+
+def report_dir(config: Any) -> Path:
+    return Path(config.rootpath) / config.getini("testbed_report_dir")
 
 
 class EnvConfig:
