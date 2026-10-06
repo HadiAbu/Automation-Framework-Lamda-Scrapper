@@ -16,14 +16,14 @@ Hexagonal core + one entry-point plugin per project, all delivered as a pytest p
 
 - `testbed-core/` defines ports (`ProjectAdapter`, `ReportSink`, `Environment`) and the pytest fixtures that wire them (composition root). Tests depend on ports only.
 - Core **never imports a project**. `discovery.py` loads projects through `importlib.metadata.entry_points(group="testbed.projects")`. Adding a project = a new package that registers its adapter and tests via that entry point, with no core changes. Preserve this invariant.
-- Fixture scopes: session (`env_config`, `aws_session`, `report_sink`), module (`adapter`, resolved by project name), function (`client`, `artifact_dir`).
-- Reporting: pytest hooks build a `RunReport`; sinks are `JsonSink` and `NotionSink`. Flaky tests (rerun once) must be tagged in the report, never silently passed.
-- Report data travels on `report.user_properties` (`PROJECT_KEY`/`FLAKY_KEY`), so collection is xdist-safe; `ReportCollector` only publishes on the controller process.
+- Fixture scopes: session (`env_config`, `registry`, `aws_session`, `report_sink`), module (`adapter`, resolved by project name), function (`client`, `artifact_dir`).
+- Reporting: pytest hooks build a `RunReport`; sinks are `JsonSink` (built) and `NotionSink` (planned, Phase 4). Flaky tests (rerun once) must be tagged in the report, never silently passed.
+- Report data travels on `report.user_properties` (`PROJECT_KEY`/`FLAKY_KEY`), so collection is designed to be xdist-safe (untested until Phase 3); `ReportCollector` only publishes on the controller process.
 - Teardown failures appear as separate `<nodeid> [teardown]` failed entries in the report. For a retried test, teardown failures from its discarded attempts are reported the same way.
 - `FakeAdapter` lives in core so the framework is testable offline.
 - Projects under test: `projects/jobfetcher` (adapter invokes the deployed Lambda and reads S3) and `projects/publicapi` (second demo target proving reuse).
 - `services/jobfetcher/` is the Lambda being tested: `JobSource` strategies (Greenhouse, Lever) normalize to `JobPost` and write `jobs/<date>.json` to S3. Infra is AWS SAM (`template.yaml`: Lambda, daily EventBridge schedule, S3, IAM, GitHub OIDC role). The Lambda runs on its own schedule; GitHub Actions only tests it.
-- CI: `test.yml` runs `pytest -n auto` in Docker and `NotionSink` writes a row to the "Test Runs" Notion DB plus a report page, with the link in the job summary. `deploy.yml` runs `sam build && sam deploy` via OIDC (no long-lived AWS keys).
+- CI (planned, Phase 4): `test.yml` runs `pytest -n auto` in Docker and `NotionSink` writes a row to the "Test Runs" Notion DB plus a report page, with the link in the job summary. `deploy.yml` runs `sam build && sam deploy` via OIDC (no long-lived AWS keys).
 
 ## Commands
 
@@ -32,6 +32,8 @@ python -m venv .venv && .venv/Scripts/python -m pip install -e testbed-core   # 
 .venv/Scripts/python -m pytest testbed-core/tests                              # core suite
 .venv/Scripts/python -m pytest testbed-core/tests/test_retry.py::test_name     # single test
 ```
+
+Users get 1 retry by default; the core suite pins `--testbed-retries=0` in `testbed-core/pyproject.toml` addopts. Options: `--testbed-retries N`, ini `testbed_project`, ini `testbed_report_dir`.
 
 ### Planned (later phases)
 

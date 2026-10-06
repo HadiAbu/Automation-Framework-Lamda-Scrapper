@@ -9,7 +9,7 @@ Decisions made with user: platform + 2 demo projects; free public job-board JSON
 
 **`testbed-core/` — pytest plugin (`pytest11` entry point)**
 - `ports.py` — abstract ports (ABC/Protocol): `ProjectAdapter` (setup/health_check/client/teardown/describe), `ReportSink`, `Environment`. Tests depend on ports only (dependency inversion).
-- `discovery.py` — loads project plugins via `importlib.metadata.entry_points(group="testbed.projects")`; builds the registry (name -> adapter factory + fixtures module). Core never imports a project.
+- `discovery.py` — loads project plugins via `importlib.metadata.entry_points(group="testbed.projects")`; builds the registry (name -> adapter factory; projects that need their own fixtures ship them through their own `pytest11` entry point (revisit in Phase 3)). Core never imports a project.
 - `fixtures.py` — composition root, layered by scope: session (`env_config`, `aws_session`, `report_sink`), module (`adapter` resolved by project name from marker/ini), function (`client`, `artifact_dir`).
 - `reporting/` — `RunReport` dataclass built from pytest hooks (`pytest_runtest_logreport`, `pytest_sessionfinish`); sinks: `JsonSink`, `NotionSink`.
 - `retry.py` — rerun-once flaky detection; flaky tests are tagged in the report, never silently passed.
