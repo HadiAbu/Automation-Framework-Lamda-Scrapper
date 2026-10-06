@@ -23,5 +23,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-p pytester"
+addopts = "-p pytester --testbed-retries=0"
 testbed_report_dir = ".reports"

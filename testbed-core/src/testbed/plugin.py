@@ -15,6 +15,7 @@ from testbed.fixtures import (  # noqa: F401
 )
 from testbed.reporting.collector import PROJECT_KEY, ReportCollector
 from testbed.reporting.json_sink import JsonSink
+from testbed.retry import run_with_retries
 from testbed.state import SINK_KEY
 
 
@@ -28,6 +29,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "testbed_report_dir",
         "Directory for testbed reports and artifacts, relative to the rootdir.",
         default="reports",
+    )
+    parser.addoption(
+        "--testbed-retries",
+        type=int,
+        default=1,
+        dest="testbed_retries",
+        help="Re-run a failing test call up to N times; a pass on retry is "
+        "reported as flaky (0 disables).",
     )
 
 
@@ -50,3 +59,10 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     if project:
         report.user_properties.append((PROJECT_KEY, project))
     return report
+
+
+def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None):
+    retries = item.config.getoption("testbed_retries")
+    if retries <= 0:
+        return None
+    return run_with_retries(item, nextitem, retries)
