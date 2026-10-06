@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from testbed.config import report_dir
+from testbed.discovery import resolve_project_name
 from testbed.fixtures import (  # noqa: F401
     adapter,
     artifact_dir,
@@ -9,7 +11,11 @@ from testbed.fixtures import (  # noqa: F401
     client,
     env_config,
     registry,
+    report_sink,
 )
+from testbed.reporting.collector import PROJECT_KEY, ReportCollector
+from testbed.reporting.json_sink import JsonSink
+from testbed.state import SINK_KEY
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -29,3 +35,18 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "project(name): select the testbed project adapter for a test module"
     )
+    sink = JsonSink(report_dir(config))
+    config.stash[SINK_KEY] = sink
+    config.pluginmanager.register(
+        ReportCollector(sink, is_worker=hasattr(config, "workerinput")),
+        "testbed-collector",
+    )
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    report = yield
+    project = resolve_project_name(item, item.config)
+    if project:
+        report.user_properties.append((PROJECT_KEY, project))
+    return report

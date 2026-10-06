@@ -14,9 +14,10 @@ from testbed.discovery import (
     load_registry,
     resolve_project_name,
 )
-from testbed.ports import ProjectAdapter
+from testbed.ports import ProjectAdapter, ReportSink
+from testbed.state import SINK_KEY
 
-__all__ = ["adapter", "artifact_dir", "aws_session", "client", "env_config", "registry"]
+__all__ = ["adapter", "artifact_dir", "aws_session", "client", "env_config", "registry", "report_sink"]
 
 
 @pytest.fixture(scope="session")
@@ -69,3 +70,8 @@ def aws_session(env_config: EnvConfig) -> Any:
             pytrace=False,
         )
     return boto3.Session(region_name=env_config.get("AWS_REGION"))
+
+
+@pytest.fixture(scope="session")
+def report_sink(request: pytest.FixtureRequest) -> ReportSink:
+    return request.config.stash[SINK_KEY]
