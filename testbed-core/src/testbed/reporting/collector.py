@@ -25,19 +25,38 @@ class ReportCollector:
         self._started_at = datetime.now(timezone.utc)
         self._t0 = time.monotonic()
         self.location: str | None = None
+        self.publish_error: str | None = None
 
     def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
         result = self._to_result(report)
         if result is not None:
             self._results.append(result)
 
+    def pytest_collectreport(self, report: pytest.CollectReport) -> None:
+        if report.failed:
+            self._results.append(
+                CaseResult(
+                    nodeid=f"{report.nodeid} [collect]",
+                    project=None,
+                    outcome="failed",
+                    duration=0.0,
+                    message=report.longreprtext[:MAX_MESSAGE],
+                )
+            )
+
     def pytest_sessionfinish(self, session: Any) -> None:
         if self._is_worker:
             return
-        self.location = self._sink.publish(self.build())
+        try:
+            self.location = self._sink.publish(self.build())
+        except Exception as exc:
+            self.location = None
+            self.publish_error = repr(exc)
 
     def pytest_terminal_summary(self, terminalreporter: Any) -> None:
-        if self.location:
+        if self.publish_error:
+            terminalreporter.write_sep("!", f"testbed report FAILED to publish: {self.publish_error}")
+        elif self.location:
             terminalreporter.write_sep("-", f"testbed report: {self.location}")
 
     def build(self) -> RunReport:

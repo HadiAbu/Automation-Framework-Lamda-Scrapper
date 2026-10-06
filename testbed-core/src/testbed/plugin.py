@@ -42,7 +42,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
-        "markers", "project(name): select the testbed project adapter for a test module"
+        "markers",
+        "project(name): select the testbed project adapter; module level only "
+        "(use pytestmark = pytest.mark.project(...)); markers on single tests or "
+        "classes are not honored by the adapter fixture",
     )
     sink = JsonSink(report_dir(config))
     config.stash[SINK_KEY] = sink

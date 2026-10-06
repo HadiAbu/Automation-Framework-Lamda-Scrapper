@@ -162,3 +162,63 @@ def test_report_sink_fixture_is_the_session_sink(pytester):
         """
     )
     pytester.runpytest().assert_outcomes(passed=1)
+
+
+def test_collection_error_is_reported_as_a_failed_collect_entry(pytester):
+    pytester.makepyfile("import nonexistent_module_xyz\n\ndef test_a():\n    pass\n")
+    pytester.runpytest()
+    data = json.loads((pytester.path / "reports" / "report.json").read_text())
+    assert data["summary"]["failed"] >= 1
+    collect = [r for r in data["results"] if r["nodeid"].endswith("[collect]")]
+    assert len(collect) == 1
+    assert collect[0]["outcome"] == "failed"
+    assert "nonexistent_module_xyz" in collect[0]["message"]
+
+
+def test_collectreport_unit_records_failures_only():
+    collector = ReportCollector(_Sink())
+    ok = pytest.CollectReport("t.py", "passed", None, [])
+    bad = pytest.CollectReport("t.py", "failed", "ImportError boom", [])
+    collector.pytest_collectreport(ok)
+    collector.pytest_collectreport(bad)
+    [result] = collector.build().results
+    assert (result.nodeid, result.outcome, result.project) == ("t.py [collect]", "failed", None)
+    assert "boom" in result.message
+
+
+class _RaisingSink:
+    def publish(self, report):
+        raise OSError("disk full")
+
+
+class _Terminal:
+    def __init__(self):
+        self.seps = []
+
+    def write_sep(self, sep, title=None, **kw):
+        self.seps.append((sep, title))
+
+
+def test_sink_failure_in_sessionfinish_is_captured_not_raised():
+    collector = ReportCollector(_RaisingSink())
+    collector.pytest_sessionfinish(session=None)
+    assert collector.location is None
+    assert "disk full" in collector.publish_error
+
+
+def test_publish_failure_is_shown_in_terminal_summary():
+    collector = ReportCollector(_RaisingSink())
+    collector.pytest_sessionfinish(session=None)
+    term = _Terminal()
+    collector.pytest_terminal_summary(term)
+    assert len(term.seps) == 1
+    sep, title = term.seps[0]
+    assert sep == "!"
+    assert title.startswith("testbed report FAILED to publish:")
+    assert "disk full" in title
+
+
+def test_no_publish_error_by_default():
+    collector = ReportCollector(_Sink())
+    collector.pytest_sessionfinish(session=None)
+    assert collector.publish_error is None
