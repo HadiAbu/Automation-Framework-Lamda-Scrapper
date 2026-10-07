@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "testbed-core"
+version = "0.1.0"
+description = "Hexagonal pytest plugin for multi-project test automation"
+requires-python = ">=3.13"
+dependencies = ["pytest>=8"]
+
+[project.optional-dependencies]
+aws = ["boto3>=1.34"]
+
+[project.entry-points."testbed.projects"]
+fake = "testbed.fakes:FakeAdapter"
+
+[project.entry-points.pytest11]
+testbed = "testbed.plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p pytester --testbed-retries=0"
+testbed_report_dir = ".reports"
