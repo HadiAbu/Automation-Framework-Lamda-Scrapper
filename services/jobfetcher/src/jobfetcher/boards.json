@@ -1,0 +1,10 @@
+{
+  "boards": [
+    {"type": "greenhouse", "name": "stripe"},
+    {"type": "greenhouse", "name": "figma"},
+    {"type": "greenhouse", "name": "cloudflare"},
+    {"type": "lever", "name": "spotify"},
+    {"type": "lever", "name": "palantir"}
+  ],
+  "keywords": ["automation", "sdet", "qa", "test", "testing", "infrastructure", "python"]
+}
