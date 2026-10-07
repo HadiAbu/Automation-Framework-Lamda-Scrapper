@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: testbed job-fetcher Lambda, fetches public job posts daily and stores them in S3
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    MemorySize: 512
+    Timeout: 120
+
+Resources:
+  JobsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireDatedSnapshots
+            Status: Enabled
+            # "jobs/20" matches jobs/2026-10-07.json but never jobs/latest.json
+            Prefix: jobs/20
+            ExpirationInDays: 30
+
+  JobFetcherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: jobfetcher.handler.lambda_handler
+      Description: Fetch Greenhouse and Lever job posts and write them to S3
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref JobsBucket
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub "${JobsBucket.Arn}/jobs/*"
+      Events:
+        Daily:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 5 * * ? *)
+            Description: Daily fetch at 05:00 UTC
+
+Outputs:
+  BucketName:
+    Description: Bucket holding jobs/<date>.json and jobs/latest.json
+    Value: !Ref JobsBucket
+  FunctionName:
+    Description: Deployed Lambda function name
+    Value: !Ref JobFetcherFunction
