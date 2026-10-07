@@ -1,0 +1,23 @@
+{
+  "jobs": [
+    {
+      "id": 5426468004,
+      "title": "Account Executive, Enterprise",
+      "company_name": "Figma",
+      "location": {"name": "San Francisco, CA"},
+      "absolute_url": "https://boards.greenhouse.io/figma/jobs/5426468004",
+      "updated_at": "2026-07-22T05:37:08-04:00",
+      "first_published": "2025-01-28T18:57:29-05:00",
+      "content": "&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;We use Python &amp;amp; automation.&lt;/p&gt;&lt;/div&gt;"
+    },
+    {
+      "id": 5426468005,
+      "title": "SDET",
+      "location": null,
+      "absolute_url": "https://boards.greenhouse.io/figma/jobs/5426468005",
+      "updated_at": "2026-07-23T05:37:08-04:00",
+      "content": ""
+    }
+  ],
+  "meta": {"total": 2}
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "2193db3f-77c5-43b8-b030-8f92c9882bf1",
+    "text": "Android Engineer - Experience",
+    "categories": {"commitment": "Permanent", "department": "Engineering", "location": "Stockholm"},
+    "hostedUrl": "https://jobs.lever.co/spotify/2193db3f-77c5-43b8-b030-8f92c9882bf1",
+    "createdAt": 1782214185805,
+    "descriptionPlain": "Build  Python\ntools.",
+    "workplaceType": "hybrid"
+  },
+  {
+    "id": "aaaa",
+    "text": "QA Lead",
+    "categories": {},
+    "hostedUrl": "https://jobs.lever.co/spotify/aaaa",
+    "createdAt": 1700000000000
+  }
+]
