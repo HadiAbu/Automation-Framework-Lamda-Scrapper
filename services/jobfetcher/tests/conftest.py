@@ -31,3 +31,16 @@ def fake_http():
         return get
 
     return make
+
+
+class _FakeS3:
+    def __init__(self):
+        self.puts = []
+
+    def put_object(self, **kwargs):
+        self.puts.append(kwargs)
+
+
+@pytest.fixture
+def fake_s3():
+    return _FakeS3()
