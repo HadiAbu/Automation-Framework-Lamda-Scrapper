@@ -53,7 +53,7 @@ Decisions made with user: platform + 2 demo projects; free public job-board JSON
 
 **Approach:** one Lambda that loops over the configured boards. Each source runs in isolation (own `try/except` and timeout); a failing source is recorded in the output and does not fail the run. The run fails only if every source failed. (Rejected: per-source fan-out with Step Functions/SQS as over-engineered; fail-fast as one flaky board would lose the day's data.)
 
-**Layout (`services/jobfetcher/`):** `src/jobfetcher/{models,config,pipeline,storage,handler}.py`, `src/jobfetcher/sources/{base,greenhouse,lever}.py`, `template.yaml`, `config/boards.json`, `tests/`. No third-party runtime dependencies: stdlib `urllib` for HTTP and the Lambda-provided `boto3` for S3. No Lambda layer.
+**Layout (`services/jobfetcher/`):** `src/jobfetcher/{models,config,pipeline,storage,handler}.py`, `src/jobfetcher/sources/{base,greenhouse,lever}.py`, `template.yaml`, `src/jobfetcher/boards.json (ships inside the Lambda zip)`, `tests/`. No third-party runtime dependencies: stdlib `urllib` for HTTP and the Lambda-provided `boto3` for S3. No Lambda layer.
 
 **Sources (public, unauthenticated, verified live 2026-10-07):**
 - Greenhouse: `GET https://boards-api.greenhouse.io/v1/boards/<token>/jobs?content=true`
@@ -71,8 +71,8 @@ Decisions made with user: platform + 2 demo projects; free public job-board JSON
 ```
 The `sources` block is what the Phase 3 contract tests assert on (schema, freshness, dedupe, one-source-failing tolerance).
 
-**SAM template:** Python 3.13, arm64, 256 MB, 60 s timeout; one S3 bucket (SSE on, public access blocked, 30-day lifecycle on dated objects); daily EventBridge schedule; least-privilege role (`s3:PutObject` on `jobs/*` only) plus CloudWatch logs.
+**SAM template:** Python 3.13, x86_64, 512 MB, 120 s timeout (five boards return ~21 MB of JSON and take ~18 s sequentially, measured 2026-10-07); one S3 bucket (SSE on, public access blocked, 30-day lifecycle on dated objects); daily EventBridge schedule; least-privilege role (`s3:PutObject` on `jobs/*` only) plus CloudWatch logs.
 
-**Testing:** TDD with the HTTP fetcher and the S3 client injected, using recorded Greenhouse/Lever fixtures, all offline. Verification: unit tests green, `sam validate`, `sam local invoke` (Docker), then `sam deploy`, an invoke, and a check that `jobs/latest.json` exists and parses.
+**Testing:** TDD with the HTTP fetcher and the S3 client injected, using recorded Greenhouse/Lever fixtures, all offline. Verification: unit tests green, `sam validate`, `sam local invoke` (Docker), then `sam deploy`, an invoke, and a check that `jobs/latest.json` exists and parses. A `{"dry_run": true}` event runs fetch + normalize + tag and returns the summary without touching S3, so `sam local invoke` needs no AWS credentials.
 
-**AWS setup (user-run, credentials never shared with the assistant):** install AWS CLI and SAM CLI; configure credentials locally (`aws configure sso` or `aws configure`); deploy with a dedicated least-privilege identity rather than root.
+**AWS setup (user-run, credentials never shared with the assistant):** install AWS CLI and SAM CLI; configure credentials locally (`aws configure sso` or `aws configure`); deploy with a dedicated non-root IAM user (the Lambda's runtime role is least-privilege; narrowing the deployer is a Phase 4 item).
