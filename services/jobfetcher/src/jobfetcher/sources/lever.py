@@ -26,7 +26,7 @@ class LeverSource(JobSource):
         return JobPost(
             id=str(item["id"]),
             source=self.label,
-            company=self.name,
+            company=self.display_name,
             title=item["text"],
             location=(item.get("categories") or {}).get("location", ""),
             url=item["hostedUrl"],

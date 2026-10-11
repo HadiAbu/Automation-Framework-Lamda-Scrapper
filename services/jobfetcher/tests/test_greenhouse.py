@@ -29,7 +29,7 @@ def test_fetch_falls_back_when_optional_fields_are_missing(fake_http, greenhouse
     http = fake_http({FIGMA_URL: greenhouse_payload})
     _, second = GreenhouseSource("figma", http).fetch()
 
-    assert second.company == "figma"
+    assert second.company == "Figma"
     assert second.location == ""
     assert second.posted_at == "2026-07-23T05:37:08-04:00"
     assert second.description == ""

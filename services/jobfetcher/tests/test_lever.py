@@ -19,7 +19,7 @@ def test_fetch_normalizes_postings(fake_http, lever_payload):
     assert http.calls == [SPOTIFY_URL]
     assert first.id == "2193db3f-77c5-43b8-b030-8f92c9882bf1"
     assert first.source == "lever:spotify"
-    assert first.company == "spotify"
+    assert first.company == "Spotify"
     assert first.title == "Android Engineer - Experience"
     assert first.location == "Stockholm"
     assert first.url == "https://jobs.lever.co/spotify/2193db3f-77c5-43b8-b030-8f92c9882bf1"
@@ -52,3 +52,8 @@ def test_create_source_builds_the_right_strategy():
     lever = create_source(BoardConfig("lever", "spotify"), None)
     assert isinstance(greenhouse, GreenhouseSource) and greenhouse.name == "stripe"
     assert isinstance(lever, LeverSource) and lever.name == "spotify"
+
+
+def test_display_name_titlecases_slug():
+    assert LeverSource("palantir", None).display_name == "Palantir"
+    assert LeverSource("my-company_x", None).display_name == "My Company X"

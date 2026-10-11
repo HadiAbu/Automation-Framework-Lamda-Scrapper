@@ -20,7 +20,7 @@ class GreenhouseSource(JobSource):
         return JobPost(
             id=str(item["id"]),
             source=self.label,
-            company=item.get("company_name") or self.name,
+            company=item.get("company_name") or self.display_name,
             title=item["title"],
             location=(item.get("location") or {}).get("name", ""),
             url=item["absolute_url"],
