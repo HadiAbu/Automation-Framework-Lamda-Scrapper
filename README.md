@@ -9,12 +9,12 @@ Built as a portfolio piece for an automation-infrastructure engineering role (Py
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Core framework: ports, discovery, fixtures, JSON reporting, flaky retry | **Built and tested** (62 tests) |
-| 2 | Job-fetcher Lambda + AWS SAM | Planned |
+| 2 | Job-fetcher Lambda + AWS SAM | **Built, deployed to eu-north-1 and verified** (43 tests) |
 | 3 | Project plugins (`jobfetcher`, `publicapi`) + Docker + parallel runs | Planned |
 | 4 | GitHub Actions CI + Notion reporting | Planned |
 | 5 | Docs and polish | Planned |
 
-Only Phase 1 exists in code today. Everything below marked *(planned)* is designed in [`docs/superpowers/specs/2026-10-06-testbed-design.md`](docs/superpowers/specs/2026-10-06-testbed-design.md) but not implemented yet.
+Phases 1 and 2 exist in code today. Everything below marked *(planned)* is designed in [`docs/superpowers/specs/2026-10-06-testbed-design.md`](docs/superpowers/specs/2026-10-06-testbed-design.md) but not implemented yet.
 
 ## Architecture
 
@@ -175,9 +175,25 @@ Outcomes are `passed`, `failed`, `skipped` and `flaky`. Setup, teardown and coll
 
 ## Planned (later phases)
 
-- **`jobfetcher`**: an AWS Lambda on an EventBridge schedule that fetches job posts from public Greenhouse/Lever board APIs and writes `jobs/<date>.json` to S3, deployed with AWS SAM.
+- **`jobfetcher` project plugin**: an adapter that invokes the deployed Lambda and reads S3, plus contract tests on the `sources` block (the Lambda itself is built; see below).
 - **`publicapi`**: a second, small target proving the platform is reusable.
 - **CI**: GitHub Actions runs the suite in Docker (`pytest -n auto`) and publishes each run to a Notion database with a shareable report link.
+
+## Job-fetcher service (Phase 2)
+
+`services/jobfetcher/` is the system under test: an AWS Lambda (Python 3.13) on a daily EventBridge schedule. `JobSource` strategies (Greenhouse, Lever) normalize postings to `JobPost`, the pipeline isolates failing sources, dedupes and tags keywords, and the result is written to S3 as `jobs/<date>.json` and `jobs/latest.json`. Boards and keywords live in a config file. Infra is AWS SAM (`template.yaml`).
+
+**Deployed (eu-north-1, stack `testbed-jobfetcher`):** function `testbed-jobfetcher-JobFetcherFunction-OMWxVGmAgxNo`, bucket `testbed-jobfetcher-jobsbucket-x8lu0scqrdkn`. A real invoke on 2026-10-11 fetched 1,697 jobs from 5 boards (all sources ok) in ~16s using ~155 MB of the 512 MB configured. AWS commands need the `testbed` CLI profile (`--profile testbed` or `AWS_PROFILE=testbed`).
+
+```
+cd services/jobfetcher
+python -m pytest                                  # offline suite
+sam validate --lint && sam build
+sam local invoke -e events/dry-run.json           # needs Docker; dry run writes nothing to S3
+sam deploy --profile testbed
+```
+
+The GitHub OIDC role and a narrower deployer identity are deferred to Phase 4.
 
 ## Repository layout
 
@@ -185,6 +201,7 @@ Outcomes are `passed`, `failed`, `skipped` and `flaky`. Setup, teardown and coll
 testbed-core/            the pytest plugin (src layout)
   src/testbed/           ports, discovery, fixtures, plugin, retry, reporting/
   tests/                 the framework's own suite (pytester-based)
+services/jobfetcher/      the Lambda under test (SAM template, sources, pipeline, tests)
 docs/superpowers/
   specs/                 design spec
   plans/                 phase implementation plans

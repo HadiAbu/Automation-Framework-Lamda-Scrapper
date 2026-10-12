@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Phase 1 (`testbed-core`) is implemented: ports, entry-point discovery, fixtures, JSON reporting, collector and flaky retry. Later phases (Lambda + SAM, project plugins + Docker, CI + Notion) are not built yet. The design spec is at `docs/superpowers/specs/2026-10-06-testbed-design.md`; read it before building anything.
+Phase 1 (`testbed-core`) is implemented: ports, entry-point discovery, fixtures, JSON reporting, collector and flaky retry. Phase 2 (`services/jobfetcher`, Lambda + SAM) is built, deployed to eu-north-1 and verified. Deployed stack `testbed-jobfetcher`: function `testbed-jobfetcher-JobFetcherFunction-OMWxVGmAgxNo`, bucket `testbed-jobfetcher-jobsbucket-x8lu0scqrdkn`. A real invoke on 2026-10-11 fetched 1,697 jobs from 5 boards (all sources ok) in ~16s using ~155 MB of the 512 MB configured. AWS commands need the `testbed` CLI profile (`--profile testbed` or `AWS_PROFILE=testbed`). Later phases (project plugins + Docker, CI + Notion) are not built yet. The design spec is at `docs/superpowers/specs/2026-10-06-testbed-design.md`; read it before building anything.
 
 ## What this is
 
@@ -22,7 +22,7 @@ Hexagonal core + one entry-point plugin per project, all delivered as a pytest p
 - Teardown failures appear as separate `<nodeid> [teardown]` failed entries in the report. For a retried test, teardown failures from its discarded attempts are reported the same way.
 - `FakeAdapter` lives in core so the framework is testable offline.
 - Projects under test: `projects/jobfetcher` (adapter invokes the deployed Lambda and reads S3) and `projects/publicapi` (second demo target proving reuse).
-- `services/jobfetcher/` is the Lambda being tested: `JobSource` strategies (Greenhouse, Lever) normalize to `JobPost` and write `jobs/<date>.json` to S3. Infra is AWS SAM (`template.yaml`: Lambda, daily EventBridge schedule, S3, IAM, GitHub OIDC role). The Lambda runs on its own schedule; GitHub Actions only tests it.
+- `services/jobfetcher/` is the Lambda being tested: `JobSource` strategies (Greenhouse, Lever) normalize to `JobPost` and write `jobs/<date>.json` to S3. Infra is AWS SAM (`template.yaml`: Lambda, daily EventBridge schedule, S3, IAM; the GitHub OIDC role is deferred to Phase 4). The Lambda runs on its own schedule; GitHub Actions only tests it.
 - CI (planned, Phase 4): `test.yml` runs `pytest -n auto` in Docker and `NotionSink` writes a row to the "Test Runs" Notion DB plus a report page, with the link in the job summary. `deploy.yml` runs `sam build && sam deploy` via OIDC (no long-lived AWS keys).
 
 ## Commands
@@ -35,12 +35,19 @@ python -m venv .venv && .venv/Scripts/python -m pip install -e testbed-core   # 
 
 Users get 1 retry by default; the core suite pins `--testbed-retries=0` in `testbed-core/pyproject.toml` addopts. Options: `--testbed-retries N`, ini `testbed_project`, ini `testbed_report_dir`.
 
+### Job-fetcher service (run from `services/jobfetcher`)
+
+```
+../../.venv/Scripts/python -m pytest              # offline suite
+sam validate --lint && sam build                  # use PowerShell: sam is sam.cmd, not found by Git Bash
+sam local invoke -e events/dry-run.json           # needs Docker running
+sam deploy --profile testbed                      # interactive changeset prompt; run in your own terminal
+```
+
 ### Planned (later phases)
 
 ```
 pytest -n auto                      # full suite (parallel)
-sam local invoke                    # run the Lambda locally
-sam build && sam deploy             # deploy
 docker run testbed pytest -n auto   # containerized run
 ```
 
